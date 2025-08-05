@@ -1,0 +1,16 @@
+{
+    "name": "com.justgerome.easy-sceneswitcher",
+    "version": "1.0.0",
+    "displayName": "Easy Scene Switcher",
+    "description": "Toolbar dropdown to quickly open Build vs Other scenes, with persistence.",
+    "unity": "2020.3",
+    "keywords": [ "editor", "scene", "toolbar", "utility" ],
+    "author": {
+        "name": "Gerome Pojas",
+        "url": "https://github.com/JustGerome/Utils"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "com.marijnzwemmer.unity-toolbar-extender": "1.3.0
+    }
+}
