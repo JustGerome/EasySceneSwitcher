@@ -18,7 +18,7 @@ Easy Scene Switcher adds a toolbar dropdown for quickly opening:
 ### Requirements
 
 * Unity 2020.3 or newer
-* [unity-toolbar-extender](https://github.com/marijnz/unity-toolbar-extender/blob/master/package.json)
+* [unity-toolbar-extender]([https://github.com/marijnz/unity-toolbar-extender/blob/master/package.json](https://github.com/marijnz/unity-toolbar-extender/tree/master))
 
 ### Installation
 
