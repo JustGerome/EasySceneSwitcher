@@ -1,5 +1,5 @@
 {
-    "name": "com.justgerome.easy-sceneswitcher",
+    "name": "com.justgerome.easysceneswitcher",
     "version": "1.0.0",
     "displayName": "Easy Scene Switcher",
     "description": "Toolbar dropdown to quickly open Build vs Other scenes, with persistence.",
@@ -14,4 +14,5 @@
         "com.marijnzwemmer.unity-toolbar-extender": "1.3.0
     }
 }
+
 
