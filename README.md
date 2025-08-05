@@ -12,7 +12,7 @@ Easy Scene Switcher adds a toolbar dropdown for quickly opening:
 ### Features
 
 * Split scenes into two groups with headers
-* Persist “Other Scenes” selection in `Library/EasySceneSwitcher.json`
+* Scene list settings Scriptable
 * One-click scene switching with save prompts
 
 ### Requirements
@@ -50,10 +50,10 @@ After installation, a dropdown appears in the top toolbar showing your current s
    Other Scenes
      • DevScene
      • TestScene
-   Add Other Scene
+   Manage Other Scenes
 ```
 
-To add a new scene under **Other Scenes**, choose **Add Other Scene** from the menu.
+To add a new scene under **Manager Other Scenes**, add scenes through the **Other Scene** List.
 
 ### Contributing
 
