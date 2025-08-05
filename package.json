@@ -15,7 +15,5 @@
     "url": "https://github.com/JustGerome/EasySceneSwitcher"
   },
   "license": "MIT",
-  "dependencies": {
-    "com.marijnzwemmer.unity-toolbar-extender": "1.4.2"
-  }
 }
+
