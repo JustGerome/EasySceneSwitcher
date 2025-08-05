@@ -3,39 +3,28 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityToolbarExtender;
-using System.IO;
 using System.Collections.Generic;
 
 [InitializeOnLoad]
 public static class EasySceneSwitcher
 {
-    // Paths of scenes in Build Settings
     static List<string> buildScenePaths;
     static List<string> buildSceneNames;
 
-    // Manually managed "Other Scenes"
     static List<string> otherScenePaths;
     static List<string> otherSceneNames;
 
-    // File to persist Other Scenes list
-    static string prefsFilePath;
-
-    [System.Serializable]
-    class OtherScenesData
-    {
-        public List<string> scenes;
-    }
-
     static EasySceneSwitcher()
     {
-        // Determine prefs file under Library
-        prefsFilePath = Path.GetFullPath(
-            Path.Combine(Application.dataPath, "..", "Library", "EasySceneSwitcher.json")
-        );
-
-        // Hook into the toolbar and assembly reload
+        // Hook toolbar dropdown
         ToolbarExtender.RightToolbarGUI.Add(OnToolbarGUI);
+
+        // Refresh after compile/assembly reload
         AssemblyReloadEvents.afterAssemblyReload += RefreshSceneLists;
+
+        // Refresh when assets change
+        EditorApplication.projectChanged += RefreshSceneLists;
+        Undo.undoRedoPerformed += RefreshSceneLists;
 
         // Initial population
         RefreshSceneLists();
@@ -43,75 +32,44 @@ public static class EasySceneSwitcher
 
     static void RefreshSceneLists()
     {
-        // 1) Load build scenes
+        // 1) Build scenes
         buildScenePaths = new List<string>();
         buildSceneNames = new List<string>();
         foreach (var s in EditorBuildSettings.scenes)
         {
             buildScenePaths.Add(s.path);
-            buildSceneNames.Add(Path.GetFileNameWithoutExtension(s.path));
+            buildSceneNames.Add(System.IO.Path.GetFileNameWithoutExtension(s.path));
         }
 
-        // 2) Load manually tracked other scenes
-        LoadOtherScenesData();
-    }
+        // 2) Other scenes from ScriptableObject
+        var settings = AssetDatabase.LoadAssetAtPath<OtherScenesSettings>(
+            "Assets/Moncheridels/Utils/EasySceneSwitcher/Settings/OtherScenesSettings.asset");
 
-    static void LoadOtherScenesData()
-    {
         otherScenePaths = new List<string>();
         otherSceneNames = new List<string>();
 
-        if (!File.Exists(prefsFilePath))
-            return;
-
-        try
+        if (settings != null)
         {
-            string json = File.ReadAllText(prefsFilePath);
-            var data = JsonUtility.FromJson<OtherScenesData>(json);
-            if (data != null && data.scenes != null)
+            foreach (var sceneAsset in settings.scenes)
             {
-                foreach (var path in data.scenes)
-                {
-                    // Only include if not now in build settings
-                    if (buildScenePaths.Contains(path))
-                        continue;
+                string path = AssetDatabase.GetAssetPath(sceneAsset);
+                if (string.IsNullOrEmpty(path) || buildScenePaths.Contains(path))
+                    continue;
 
-                    // Verify file still exists
-                    var full = Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
-                    if (!File.Exists(full))
-                        continue;
-
-                    otherScenePaths.Add(path);
-                    otherSceneNames.Add(Path.GetFileNameWithoutExtension(path));
-                }
+                otherScenePaths.Add(path);
+                otherSceneNames.Add(System.IO.Path.GetFileNameWithoutExtension(path));
             }
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogWarning("EasySceneSwitcher: Failed to load Other Scenes list: " + ex.Message);
-        }
-    }
-
-    static void SaveOtherScenesData()
-    {
-        var data = new OtherScenesData { scenes = otherScenePaths };
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(prefsFilePath));
-            string json = JsonUtility.ToJson(data, true);
-            File.WriteAllText(prefsFilePath, json);
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogWarning("EasySceneSwitcher: Failed to save Other Scenes list: " + ex.Message);
         }
     }
 
     static void OnToolbarGUI()
     {
+        // Always refresh just before drawing
+        RefreshSceneLists();
+
         GUILayout.Space(10);
         var activeScene = EditorSceneManager.GetActiveScene();
-        string currentName = Path.GetFileNameWithoutExtension(activeScene.path);
+        string currentName = System.IO.Path.GetFileNameWithoutExtension(activeScene.path);
 
         if (EditorGUILayout.DropdownButton(
                 new GUIContent(currentName),
@@ -121,20 +79,19 @@ public static class EasySceneSwitcher
         {
             var menu = new GenericMenu();
 
-            // -- Build Scenes --
+            // Build Scenes
             menu.AddDisabledItem(new GUIContent("Build Scenes"));
             for (int i = 0; i < buildSceneNames.Count; i++)
             {
-                bool isCurrent = buildScenePaths[i] == activeScene.path;
                 menu.AddItem(
                     new GUIContent(buildSceneNames[i]),
-                    isCurrent,
-                    new GenericMenu.MenuFunction2(OpenScene),
+                    buildScenePaths[i] == activeScene.path,
+                    OpenScene,
                     buildScenePaths[i]
                 );
             }
 
-            // -- Other Scenes --
+            // Other Scenes
             if (otherSceneNames.Count > 0)
             {
                 menu.AddSeparator("");
@@ -144,18 +101,18 @@ public static class EasySceneSwitcher
                     menu.AddItem(
                         new GUIContent(otherSceneNames[i]),
                         false,
-                        new GenericMenu.MenuFunction2(OpenScene),
+                        OpenScene,
                         otherScenePaths[i]
                     );
                 }
             }
 
-            // -- Add Other Scene --
+            // Manage Other Scenes
             menu.AddSeparator("");
             menu.AddItem(
-                new GUIContent("Add Other Scene"),
+                new GUIContent("Manage Other Scenes"),
                 false,
-                new GenericMenu.MenuFunction(AddOtherScene)
+                () => EditorWindow.GetWindow<OtherScenesSettingsWindow>()
             );
 
             menu.DropDown(GUILayoutUtility.GetLastRect());
@@ -165,45 +122,11 @@ public static class EasySceneSwitcher
     static void OpenScene(object userData)
     {
         string scenePath = userData as string;
-        if (string.IsNullOrEmpty(scenePath)) return;
+        if (string.IsNullOrEmpty(scenePath))
+            return;
 
         if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             EditorSceneManager.OpenScene(scenePath);
-    }
-
-    static void AddOtherScene()
-    {
-        // Pick a scene file
-        string abs = EditorUtility.OpenFilePanel(
-            "Select Scene to Track as 'Other'",
-            Application.dataPath,
-            "unity"
-        );
-        if (string.IsNullOrEmpty(abs)) return;
-
-        if (!abs.StartsWith(Application.dataPath))
-        {
-            Debug.LogWarning("Please select a scene within the Assets folder.");
-            return;
-        }
-
-        // Convert to project-relative
-        string projPath = "Assets" + abs.Substring(Application.dataPath.Length);
-
-        // Skip if it's in build settings
-        if (buildScenePaths.Contains(projPath))
-        {
-            Debug.Log("Scene is already in Build Settings.");
-            return;
-        }
-
-        // Add if not already tracked
-        if (!otherScenePaths.Contains(projPath))
-        {
-            otherScenePaths.Add(projPath);
-            otherSceneNames.Add(Path.GetFileNameWithoutExtension(projPath));
-            SaveOtherScenesData();
-        }
     }
 }
 #endif
